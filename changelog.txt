@@ -1,0 +1,6 @@
+v0.1
+- made a chat bot sending random previous messages(or you can fill messages database by changing words.txt)
+- added sql users database
+- added profile including id, balance, messages, inventory
+- added leaderboard for balance and messages
+- adeed an admin command to change balance(use -int to decrease balance)
