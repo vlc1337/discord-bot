@@ -82,18 +82,20 @@ async def lbmessages(inter):
     await inter.send(leaderboard)
 
 async def word():
-    words = open("words.txt", "r", encoding='utf-8').readlines()
-    res = random.choice(words)
+    with open("words.txt", "r", encoding='utf-8') as words_read:
+        res = words_read.readlines()
+    # words = open("words.txt", "r", encoding='utf-8').readlines()
+    res = random.choice(res)
     if not res:
         return
     return res
 
 async def add_word(msg):
-    s = open("words.txt", "a+", encoding='utf-8')
-    msgnormal = msg.replace('@', '')
-    if not msgnormal:
-        return
-    s.write(f"{msgnormal}\n")
+    with open("words.txt", "a", encoding='utf-8') as words_add:
+        msgnormal = msg.replace('@', '')
+        if not msgnormal:
+            return
+        words_add.write(f"{msgnormal}\n")
 
 @bot.slash_command(description='add balance to user(admin command)')
 @commands.has_role("[ROOT]")
