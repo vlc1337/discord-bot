@@ -103,7 +103,7 @@ async def addbalance(ctx, user: disnake.User, amount: int):
     res = money + amount
     cursor.execute(f'UPDATE users SET balance={res} where id={user.id}')
     con.commit()
-    await ctx.send(f"<@{ctx.author.id}> added {res} coins to <@{user.id}>'s balance")
+    await ctx.send(f"<@{ctx.author.id}> added {amount} coins to <@{user.id}>'s balance")
 
 bot.run('token')
 
