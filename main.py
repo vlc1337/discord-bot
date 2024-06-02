@@ -83,9 +83,9 @@ async def lbmessages(inter):
 
 async def word():
     with open("words.txt", "r", encoding='utf-8') as words_read:
-        words_read.readlines()
+        res = words_read.readlines()
     # words = open("words.txt", "r", encoding='utf-8').readlines()
-    res = random.choice(words_read)
+    res = random.choice(res)
     if not res:
         return
     return res
