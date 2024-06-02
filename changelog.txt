@@ -4,3 +4,5 @@ v0.1
 - added profile including id, balance, messages, inventory
 - added leaderboard for balance and messages
 - adeed an admin command to change balance(use -int to decrease balance)
+v0.1.1
+- fixed problem with chat bot
