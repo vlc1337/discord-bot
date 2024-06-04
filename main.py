@@ -44,7 +44,7 @@ async def on_message(message):
         for money in cursor.execute(f"SELECT balance FROM users where id={message.author.id}"):
             newb = money[0] + randint(1,5)
             cursor.execute(f'UPDATE users SET balance={newb} where id={message.author.id}')
-    if ('<@1245744833612746762>') in message.content: # your bot ID
+    if ('<@1215744833613746762>') in message.content: # your bot ID
         msg = await word()
         if msg:
             await message.channel.send(content=msg)
