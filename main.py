@@ -82,7 +82,8 @@ async def lbmessages(inter):
     await inter.send(leaderboard)
 
 async def word():
-    with open("words.txt", "a", encoding='utf-8') as words:
+    with open("words.txt", "r", encoding='utf-8') as tempwords:
+        words = tempwords.readlines()
         res = random.choice(words)
         if not res:
             return
