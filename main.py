@@ -73,7 +73,7 @@ async def lbmoney(inter):
 @bot.slash_command(description='shows messages leaderboard')
 async def lbmessages(inter):
     await inter.response.defer()
-    cursor.execute('SELECT id, messages FROM users ORDER BY balance DESC LIMIT 10')
+    cursor.execute('SELECT id, messages FROM users ORDER BY messages DESC LIMIT 10')
     rows = cursor.fetchall()
     leaderboard = 'Top 10 users messages:\n\n'
     for i, row in enumerate(rows):
@@ -82,18 +82,18 @@ async def lbmessages(inter):
     await inter.send(leaderboard)
 
 async def word():
-    words = open("words.txt", "r", encoding='utf-8').readlines()
-    res = random.choice(words)
-    if not res:
-        return
-    return res
+    with open("words.txt", "a", encoding='utf-8') as words:
+        res = random.choice(words)
+        if not res:
+            return
+        return res
 
 async def add_word(msg):
-    s = open("words.txt", "a+", encoding='utf-8')
-    msgnormal = msg.replace('@', '')
-    if not msgnormal:
-        return
-    s.write(f"{msgnormal}\n")
+    with open("words.txt", "a", encoding='utf-8') as s:
+        msgnormal = msg.replace('@', '')
+        if not msgnormal:
+            return
+        s.write(f"{msgnormal}\n")
 
 @bot.slash_command(description='add balance to user(admin command)')
 @commands.has_role("[ROOT]")
