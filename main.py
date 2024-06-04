@@ -98,13 +98,14 @@ async def add_word(msg):
 
 @bot.slash_command(description='add balance to user(admin command)')
 @commands.has_role("[ROOT]")
-async def addbalance(ctx, user: disnake.User, amount: int):
+async def addbalance(inter, user: disnake.User, amount: int):
+    await inter.response.defer()
     for row in cursor.execute(f"SELECT balance FROM users where id={user.id}"):
         money = row[0]
     res = money + amount
     cursor.execute(f'UPDATE users SET balance={res} where id={user.id}')
     con.commit()
-    await ctx.send(f"<@{ctx.author.id}> added {amount} coins to <@{user.id}>'s balance")
+    await inter.send(f"<@{inter.author.id}> added {amount} coins to <@{user.id}>'s balance")
 
 bot.run('token')
 
