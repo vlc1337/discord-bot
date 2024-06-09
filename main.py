@@ -7,6 +7,18 @@ import random
 bot = commands.InteractionBot(intents=disnake.Intents.all())
 con = sqlite3.connect("discord.db")
 cursor = con.cursor()
+items = ['Lucky coin']
+
+logs_channel_id = 123
+bot_id = 1337
+transfering_balance_log = True #logging balance operations
+transfering_items_log = True #logging inventory changing
+lucky_coin_boost = True #lucky coin boosts reward per message
+message_rewards = True #add balance for messages
+min_reward = 1
+max_reward = 5
+coin_boost = 1 #coins per message
+chat_bot = True #turn on chat bot
 
 @bot.event
 async def on_ready():
@@ -33,18 +45,24 @@ async def on_member_join(member):
 @bot.slash_command(description='shows account info')
 async def account(ctx, user: disnake.User):
     for info in cursor.execute(f"SELECT id, balance, messages, inventory FROM users where id={user.id}"):
-        await ctx.send(f'ID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`\ninventory: `{info[3]}`')
+        ninv = " " if info[3].count('\n') == 0 else '\n'
+        for i in info[3].split(';'):
+            ninv += f'```{i}```\n'
+        await ctx.send(f'ID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`\ninventory:{ninv}')
 
 @bot.event
 async def on_message(message):
     for messages in cursor.execute(f"SELECT messages FROM users where id={message.author.id}"):
         newm = messages[0] + 1
         cursor.execute(f'UPDATE users SET messages={newm} where id={message.author.id}')
-    if len(message.content) > 10:
+    if len(message.content) > 5:
         for money in cursor.execute(f"SELECT balance FROM users where id={message.author.id}"):
-            newb = money[0] + randint(1,5)
+            newb = money[0] + randint(min_reward, max_reward)
+            inv = invlist(message.author.id)
+            if 'Lucky coin' in inv and lucky_coin_boost:
+                newb+=coin_boost*inv.count('Lucky coin')
             cursor.execute(f'UPDATE users SET balance={newb} where id={message.author.id}')
-    if ('<@1215744833613746762>') in message.content: # your bot ID
+    if (f'<@{bot_id}>') in message.content and chat_bot: # your bot ID
         msg = await word()
         if msg:
             await message.channel.send(content=msg)
@@ -52,8 +70,9 @@ async def on_message(message):
         return
     if '@' in message.content or 'http' in message.content:
         return
-    await add_word(message.content)
-    if randint(0, 100) <= 10:
+    if chat_bot:
+        await add_word(message.content)
+    if randint(0, 100) <= 10 and chat_bot:
         msg = await word()
         if msg:
             await message.channel.send(content=msg)
@@ -96,6 +115,15 @@ async def add_word(msg):
             return
         s.write(f"{msgnormal}\n")
 
+def invlist(id):
+    for w in cursor.execute(f"SELECT inventory FROM users where id={id}"):
+        if 'empty' in w[0]:
+            inv = 'empty'  
+        else:
+            inv = w[0].split('\n')
+        return inv
+
+
 @bot.slash_command(description='add balance to user(admin command)')
 @commands.has_role("[ROOT]")
 async def addbalance(inter, user: disnake.User, amount: int):
@@ -105,7 +133,84 @@ async def addbalance(inter, user: disnake.User, amount: int):
     res = money + amount
     cursor.execute(f'UPDATE users SET balance={res} where id={user.id}')
     con.commit()
+    if transfering_balance_log:
+        channel = bot.get_channel(logs_channel_id)
+        await channel.send(f"<@{inter.author.id}> added {amount} coins to <@{user.id}>'s(now {res} coins) balance")
     await inter.send(f"<@{inter.author.id}> added {amount} coins to <@{user.id}>'s balance")
+
+@bot.slash_command(description='send money to user')
+async def sendbalance(inter, user:disnake.User, amount: int):
+    await inter.response.defer()
+    for row in cursor.execute(f"SELECT balance FROM users where id={inter.author.id}"):
+        if row[0] < amount:
+            await inter.send(f"you can't send {amount} coins because you have only {row[0]} coins")
+            if transfering_balance_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f'<@{inter.author.id}> tried to send {amount} coins to <@{user.id}> but he had only {row[0]} coins')
+        elif amount <= 0:
+            await inter.send(f"you can't send {amount} coins :p")
+            if transfering_balance_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f'<@{inter.author.id}> tried to send {amount} coins to <@{user.id}>')
+        elif inter.author.id == user.id:
+            await inter.send(f"you can't send money to yourself")
+        if row[0] >= amount and amount > 0 and inter.author.id != user.id:
+            newb = row[0] - amount
+            cursor.execute(f'UPDATE users SET balance={newb} where id={inter.author.id}')
+            con.commit()
+            for r in cursor.execute(f"SELECT balance FROM users where id={user.id}"):
+                addb = r[0] + amount
+                cursor.execute(f'UPDATE users SET balance={addb} where id={user.id}')
+                con.commit()
+            if transfering_balance_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f"<@{inter.author.id}>(now {newb} coins) sent <@{user.id}>(now {addb} coins) {amount} coins")
+            await inter.send(f"<@{inter.author.id}> sent <@{user.id}> {amount} coins")
+
+
+@bot.slash_command(description='add an item to user(admin command)')
+@commands.has_role("[ROOT]")
+async def additem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
+    await inter.response.defer()
+    resinvv = invlist(user.id)
+    resinv = '\n'.join(resinvv)
+    if resinvv != 'empty':
+        resinv+=f'\n{item}'
+    if resinvv == 'empty':
+        resinv=f'{item}'
+    cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+    con.commit()
+    await inter.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}") 
+    if transfering_items_log:
+        channel = bot.get_channel(logs_channel_id)
+        await channel.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}\ncurrent <@{user.id}> inventory:\n{str(resinv)}")
+
+@bot.slash_command(description='send an item to another user')
+async def senditem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
+    await inter.response.defer()
+    resinvv = invlist(user.id)
+    resinv = '\n'.join(resinvv)
+    senderinv = invlist(inter.author.id)
+    if item in senderinv and user.id != inter.author.id:
+        if resinv != 'empty':
+            resinv+=f'\n{item}'
+        if resinv == 'empty':
+            resinv=f'{item}'
+        cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+        con.commit()
+        senderinv.remove(item)
+        if senderinv == []:
+            senderinv.append('empty')
+        sendinv = '\n'.join(senderinv) if len(senderinv) > 1 else senderinv[0]
+        cursor.execute(f"UPDATE users SET inventory='{str(sendinv)}' where id={inter.author.id}")
+        await inter.send(f"<@{inter.author.id}> sent <@{user.id}> an item: {item}") 
+        if transfering_items_log:
+            channel = bot.get_channel(logs_channel_id)
+            await channel.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}\n<@{inter.author.id}>:\n{sendinv}\n<@{user.id}>:\n{resinv}")
+    elif item not in senderinv:
+        await inter.send(f"you don't have {item} so you can't send it")
+    elif user.id == inter.author.id:
+        await inter.send(f"you can't send it to yourself")
 
 bot.run('token')
 
