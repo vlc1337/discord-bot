@@ -7,3 +7,9 @@ v0.1
 v0.1.1
 - fixed problem with chat bot
 - fixed messages leaderboard
+v0.2
+- added first item: lucky coin(gives balance farm boost)
+- added config
+- added balance transfers
+- added inventory transfers
+- fixed some bugs
