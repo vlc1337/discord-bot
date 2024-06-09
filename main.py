@@ -9,6 +9,7 @@ con = sqlite3.connect("discord.db")
 cursor = con.cursor()
 items = ['Lucky coin'] #add items here
 
+token = 'token' #your bot token
 logs_channel_id = 123
 bot_id = 1337
 transfering_balance_log = True #logging balance operations
@@ -55,6 +56,7 @@ async def on_message(message):
     for messages in cursor.execute(f"SELECT messages FROM users where id={message.author.id}"):
         newm = messages[0] + 1
         cursor.execute(f'UPDATE users SET messages={newm} where id={message.author.id}')
+        con.commit()
     if len(message.content) > 5:
         for money in cursor.execute(f"SELECT balance FROM users where id={message.author.id}"):
             newb = money[0] + randint(min_reward, max_reward)
@@ -62,6 +64,7 @@ async def on_message(message):
             if 'Lucky coin' in inv and lucky_coin_boost:
                 newb+=coin_boost*inv.count('Lucky coin')
             cursor.execute(f'UPDATE users SET balance={newb} where id={message.author.id}')
+            con.commit()
     if (f'<@{bot_id}>') in message.content and chat_bot: # your bot ID
         msg = await word()
         if msg:
@@ -76,7 +79,6 @@ async def on_message(message):
         msg = await word()
         if msg:
             await message.channel.send(content=msg)
-con.commit()
 
 @bot.slash_command(description='shows money leaberboard')
 async def lbmoney(inter):
@@ -220,6 +222,7 @@ async def senditem(inter, user: disnake.User, item: str = commands.Param(choices
             senderinv.append('empty')
         sendinv = '\n'.join(senderinv) if len(senderinv) > 1 else senderinv[0]
         cursor.execute(f"UPDATE users SET inventory='{str(sendinv)}' where id={inter.author.id}")
+        con.commit()
         await inter.send(f"<@{inter.author.id}> sent <@{user.id}> an item: {item}") 
         if transfering_items_log:
             channel = bot.get_channel(logs_channel_id)
@@ -229,6 +232,4 @@ async def senditem(inter, user: disnake.User, item: str = commands.Param(choices
     elif user.id == inter.author.id:
         await inter.send(f"you can't send it to yourself")
 
-bot.run('token')
-
-
+bot.run(token)
