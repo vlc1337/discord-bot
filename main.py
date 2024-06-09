@@ -7,7 +7,7 @@ import random
 bot = commands.InteractionBot(intents=disnake.Intents.all())
 con = sqlite3.connect("discord.db")
 cursor = con.cursor()
-items = ['Lucky coin']
+items = ['Lucky coin'] #add items here
 
 logs_channel_id = 123
 bot_id = 1337
@@ -184,6 +184,23 @@ async def additem(inter, user: disnake.User, item: str = commands.Param(choices=
     if transfering_items_log:
         channel = bot.get_channel(logs_channel_id)
         await channel.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}\ncurrent <@{user.id}> inventory:\n{str(resinv)}")
+
+@bot.slash_command(description='remove an item(admin command)')
+@commands.has_role("[ROOT]")
+async def removeitem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
+    await inter.response.defer()
+    resinvv = invlist(user.id)
+    if item in resinvv:
+        resinvv.remove(item)
+        resinv = '\n'.join(resinvv)
+        cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+        con.commit()
+        await inter.send(f"<@{inter.author.id}> removed {item} from <@{user.id}>'s inventory") 
+        if transfering_items_log:
+            channel = bot.get_channel(logs_channel_id)
+            await channel.send(f"<@{inter.author.id}> removed {item} from <@{user.id}>'s inventory\ncurrent <@{user.id}> inventory:\n{str(resinv)}")
+    else:
+        await inter.send(f"<@{user.id}> doesn't have {item}")
 
 @bot.slash_command(description='send an item to another user')
 async def senditem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
