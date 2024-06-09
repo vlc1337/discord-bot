@@ -49,7 +49,7 @@ async def account(ctx, user: disnake.User):
         ninv = " " if info[3].count('\n') == 0 else '\n'
         for i in info[3].split(';'):
             ninv += f'```{i}```\n'
-        await ctx.send(f'ID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`\ninventory:{ninv}')
+        await ctx.send(f'Viewing `{user.name}`\nID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`\ninventory:{ninv}')
 
 @bot.event
 async def on_message(message):
