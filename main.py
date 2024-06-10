@@ -19,6 +19,7 @@ lucky_coin_boost = True #lucky coin boosts reward per message
 message_rewards = True #add balance for messages
 min_reward = 1
 max_reward = 5
+minimal_message_length = 0 #minimal message length to add balance for messagew
 coin_boost = 1 #coins per message
 chat_bot = True #turn on chat bot
 
@@ -45,12 +46,14 @@ async def on_member_join(member):
     con.commit()
 
 @bot.slash_command(description='shows account info')
-async def account(ctx, user: disnake.User):
+async def account(inter, user: disnake.User = None):
+    if not user:
+        user = inter.author
     for info in cursor.execute(f"SELECT id, balance, messages, inventory FROM users where id={user.id}"):
         ninv = " " if info[3].count('\n') == 0 else '\n'
         for i in info[3].split(';'):
             ninv += f'```{i}```\n'
-        await ctx.send(f'Viewing `{user.name}`\nID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`\ninventory:{ninv}')
+        await inter.send(f'Viewing `{user.name}`\nID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`\ninventory:{ninv}')
 
 @bot.event
 async def on_message(message):
@@ -58,7 +61,7 @@ async def on_message(message):
         newm = messages[0] + 1
         cursor.execute(f'UPDATE users SET messages={newm} where id={message.author.id}')
         con.commit()
-    if len(message.content) > 5:
+    if len(message.content) > minimal_message_length:
         for money in cursor.execute(f"SELECT balance FROM users where id={message.author.id}"):
             newb = money[0] + randint(min_reward, max_reward)
             inv = invlist(message.author.id)
