@@ -13,3 +13,6 @@ v0.2
 - added balance transfers
 - added inventory transfers
 - fixed some bugs
+v0.2.1
+- upgraded leaderboard
+- minor bug fixes
