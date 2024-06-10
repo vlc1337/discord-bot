@@ -3,6 +3,7 @@ from disnake.ext import commands
 import sqlite3
 from random import randint
 import random
+import math
 
 bot = commands.InteractionBot(intents=disnake.Intents.all())
 con = sqlite3.connect("discord.db")
