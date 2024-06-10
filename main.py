@@ -81,25 +81,43 @@ async def on_message(message):
             await message.channel.send(content=msg)
 
 @bot.slash_command(description='shows money leaberboard')
-async def lbmoney(inter):
+async def lbmoney(inter, page: int=1):
     await inter.response.defer()
-    cursor.execute('SELECT id, balance FROM users ORDER BY balance DESC LIMIT 10')
+    cursor.execute('SELECT id, balance FROM users ORDER BY balance DESC')
     rows = cursor.fetchall()
-    leaderboard = 'Top 10 users balance:\n\n'
-    for i, row in enumerate(rows):
+
+    max_pages = math.ceil(len(rows)/10)
+    if page > max_pages or page < 1:
+        await inter.send(f"Invalid page number. Valid pages are 1-{max_pages}")
+        return
+
+    start_index = (page - 1) * 10
+    end_index = start_index + 10
+
+    leaderboard = 'Balance leaderboard (Page {}/{}):\n\n'.format(page, max_pages)
+    for i, row in enumerate(rows[start_index:end_index]):
         user = await bot.fetch_user(row[0])
-        leaderboard += f'{i+1}) {user.name} - {row[1]}\n'
+        leaderboard += f'{i+1+page*10-10}) `{user.name}` - {row[1]}\n'
     await inter.send(leaderboard)
 
 @bot.slash_command(description='shows messages leaderboard')
-async def lbmessages(inter):
+async def lbmessages(inter, page: int=1):
     await inter.response.defer()
-    cursor.execute('SELECT id, messages FROM users ORDER BY messages DESC LIMIT 10')
+    cursor.execute('SELECT id, messages FROM users ORDER BY messages DESC')
     rows = cursor.fetchall()
-    leaderboard = 'Top 10 users messages:\n\n'
-    for i, row in enumerate(rows):
+
+    max_pages = math.ceil(len(rows)/10)
+    if page > max_pages or page < 1:
+        await inter.send(f"Invalid page number. Valid pages are 1-{max_pages}")
+        return
+
+    start_index = (page - 1) * 10
+    end_index = start_index + 10
+
+    leaderboard = 'Messages leaderboard (Page {}/{}):\n\n'.format(page, max_pages)
+    for i, row in enumerate(rows[start_index:end_index]):
         user = await bot.fetch_user(row[0])
-        leaderboard += f'{i+1}) {user.name} - {row[1]}\n'
+        leaderboard += f'{i+1+page*10-10}) `{user.name}` - {row[1]}\n'
     await inter.send(leaderboard)
 
 async def word():
