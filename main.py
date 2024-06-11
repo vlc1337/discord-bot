@@ -57,12 +57,13 @@ async def account(inter, user: disnake.User = None):
     if not user:
         user = inter.author
     for info in cursor.execute(f"SELECT id, balance, messages, inventory FROM users where id={user.id}"):
-        ninv = "\nempty" if info[3].count('\n') == 0 else '\n'
+        ninv = "\nempty" if 'empty' in info[3] else '\n'
         coun = 0
-        if info[3].count('\n') != 0:
+        if 'empty' not in info[3]:
             for i in info[3].split('\n'):
                 ninv += f'`{i}`\n'
             coun = len(info[3].split('\n'))
+        print(info[3])
         ninv = f'`{user.name}` inventory ({coun}/{maxitems} items):\n' + ninv
         profil = f'viewing `{user.name}`\nID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`'
         await inter.send(profil, components=[
@@ -232,9 +233,11 @@ async def sendbalance(inter, user:disnake.User, amount: int):
 async def additem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
     await inter.response.defer()
     resinvv = invlist(user.id)
-    if maxitems_limit and maxitems == len(resinvv):
+    if maxitems_limit and maxitems <= len(resinvv) and resinvv != 'empty':
         await inter.send(f"you can't add {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
-    elif len(resinvv) < maxitems:
+    elif user.bot:
+        await inter.send(f"you can't send it to a bot")
+    else:
         resinv = '\n'.join(resinvv)
         if resinvv != 'empty':
             resinv+=f'\n{item}'
@@ -255,6 +258,8 @@ async def removeitem(inter, user: disnake.User, item: str = commands.Param(choic
     if item in resinvv:
         resinvv.remove(item)
         resinv = '\n'.join(resinvv)
+        if resinv == '':
+            resinv = 'empty'
         cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
         con.commit()
         await inter.send(f"<@{inter.author.id}> removed {item} from <@{user.id}>'s inventory") 
@@ -270,7 +275,7 @@ async def senditem(inter, user: disnake.User, item: str = commands.Param(choices
     resinvv = invlist(user.id)
     resinv = '\n'.join(resinvv)
     senderinv = invlist(inter.author.id)
-    if maxitems_limit and maxitems == len(resinvv):
+    if maxitems_limit and maxitems == len(resinvv) and resinvv != 'empty':
         await inter.send(f"you can't send {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
     elif len(resinvv) < maxitems:
         if item in senderinv and user.id != inter.author.id:
@@ -326,7 +331,7 @@ async def buyitem(inter, item: str = commands.Param(choices=shopitem)):
     await inter.response.defer()
     for i in cursor.execute(f"SELECT balance, inventory FROM users where id={inter.author.id}"):
         inv = invlist(inter.author.id)
-        if len(inv) >= maxitems:
+        if len(inv) >= maxitems and inv != 'empty':
             await inter.send(f"you can't buy it because you already have {len(inv)}/{maxitems} items")
         elif i[0] < shopitems[item]:
             await inter.send(f"you have only {i[0]} coins, you need {shopitems[item]-i[0]} more to buy")
