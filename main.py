@@ -8,20 +8,25 @@ import math
 bot = commands.InteractionBot(intents=disnake.Intents.all())
 con = sqlite3.connect("discord.db")
 cursor = con.cursor()
-items = ['Lucky coin'] #add items here
+items = ['Lucky coin', 'Copper ingot', 'Tester coin', 'Golden coin']
+shopitems = {'Lucky coin': 500, 'Golden coin': 1000}
+shopitem = ['Lucky coin', 'Golden coin']
 
-token = 'token' #your bot token
-logs_channel_id = 123
-bot_id = 1337
+logs_channel_id = 321
+bot_id = 123
 transfering_balance_log = True #logging balance operations
 transfering_items_log = True #logging inventory changing
 lucky_coin_boost = True #lucky coin boosts reward per message
+lucky_coin_boosti = 1 #coins boost per message
+golden_coin_boost = True #golden coin boosts reward per message
+golden_coin_boosti = 2 #coins boost per message
 message_rewards = True #add balance for messages
 min_reward = 1
 max_reward = 5
-minimal_message_length = 0 #minimal message length to add balance for messagew
-coin_boost = 1 #coins per message
+min_message_length = 5 #minimal message length for a reward
 chat_bot = True #turn on chat bot
+maxitems_limit = True #set a limit on inventory
+maxitems = 5 #max items in inventory
 
 @bot.event
 async def on_ready():
@@ -47,13 +52,38 @@ async def on_member_join(member):
 
 @bot.slash_command(description='shows account info')
 async def account(inter, user: disnake.User = None):
+    global ninv, profil
+    await inter.response.defer()
     if not user:
         user = inter.author
     for info in cursor.execute(f"SELECT id, balance, messages, inventory FROM users where id={user.id}"):
-        ninv = " " if info[3].count('\n') == 0 else '\n'
-        for i in info[3].split(';'):
-            ninv += f'```{i}```\n'
-        await inter.send(f'Viewing `{user.name}`\nID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`\ninventory:{ninv}')
+        ninv = "\nempty" if info[3].count('\n') == 0 else '\n'
+        coun = 0
+        if info[3].count('\n') != 0:
+            for i in info[3].split('\n'):
+                ninv += f'`{i}`\n'
+            coun = len(info[3].split('\n'))
+        ninv = f'`{user.name}` inventory ({coun}/{maxitems} items):\n' + ninv
+        profil = f'viewing `{user.name}`\nID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`'
+        await inter.send(profil, components=[
+        disnake.ui.Button(label="open inventory", style=disnake.ButtonStyle.primary, custom_id="inventory")
+    ])
+    if user.bot:
+        await inter.send("Bots don't have profile")
+
+@bot.event
+async def on_button_click(inter):
+    global ninv, profil
+    await inter.response.defer()
+    if inter.component.custom_id == "inventory":
+            await inter.message.edit(content=ninv, components=[
+        disnake.ui.Button(label="open profile", style=disnake.ButtonStyle.primary, custom_id="profile")
+    ])
+    if inter.component.custom_id == 'profile':
+            await inter.message.edit(content=profil, components=[
+                disnake.ui.Button(label="open inventory", style=disnake.ButtonStyle.primary, custom_id="inventory")
+            ])
+
 
 @bot.event
 async def on_message(message):
@@ -61,12 +91,14 @@ async def on_message(message):
         newm = messages[0] + 1
         cursor.execute(f'UPDATE users SET messages={newm} where id={message.author.id}')
         con.commit()
-    if len(message.content) > minimal_message_length:
+    if len(message.content) > min_message_length:
         for money in cursor.execute(f"SELECT balance FROM users where id={message.author.id}"):
             newb = money[0] + randint(min_reward, max_reward)
             inv = invlist(message.author.id)
             if 'Lucky coin' in inv and lucky_coin_boost:
-                newb+=coin_boost*inv.count('Lucky coin')
+                newb+=lucky_coin_boosti*inv.count('Lucky coin')
+            if 'Golden coin' in inv and golden_coin_boost:
+                newb+=golden_coin_boosti*inv.count('Golden coin')
             cursor.execute(f'UPDATE users SET balance={newb} where id={message.author.id}')
             con.commit()
     if (f'<@{bot_id}>') in message.content and chat_bot: # your bot ID
@@ -123,6 +155,7 @@ async def lbmessages(inter, page: int=1):
         user = await bot.fetch_user(row[0])
         leaderboard += f'{i+1+page*10-10}) `{user.name}` - {row[1]}\n'
     await inter.send(leaderboard)
+
 
 async def word():
     with open("words.txt", "r", encoding='utf-8') as tempwords:
@@ -190,6 +223,8 @@ async def sendbalance(inter, user:disnake.User, amount: int):
                 channel = bot.get_channel(logs_channel_id)
                 await channel.send(f"<@{inter.author.id}>(now {newb} coins) sent <@{user.id}>(now {addb} coins) {amount} coins")
             await inter.send(f"<@{inter.author.id}> sent <@{user.id}> {amount} coins")
+    if user.bot:
+        await inter.send("You can't send money to bot")
 
 
 @bot.slash_command(description='add an item to user(admin command)')
@@ -197,17 +232,20 @@ async def sendbalance(inter, user:disnake.User, amount: int):
 async def additem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
     await inter.response.defer()
     resinvv = invlist(user.id)
-    resinv = '\n'.join(resinvv)
-    if resinvv != 'empty':
-        resinv+=f'\n{item}'
-    if resinvv == 'empty':
-        resinv=f'{item}'
-    cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
-    con.commit()
-    await inter.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}") 
-    if transfering_items_log:
-        channel = bot.get_channel(logs_channel_id)
-        await channel.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}\ncurrent <@{user.id}> inventory:\n{str(resinv)}")
+    if maxitems_limit and maxitems == len(resinvv):
+        await inter.send(f"you can't add {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
+    elif len(resinvv) < maxitems:
+        resinv = '\n'.join(resinvv)
+        if resinvv != 'empty':
+            resinv+=f'\n{item}'
+        if resinvv == 'empty':
+            resinv=f'{item}'
+        cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+        con.commit()
+        await inter.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}") 
+        if transfering_items_log:
+            channel = bot.get_channel(logs_channel_id)
+            await channel.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}\ncurrent <@{user.id}> inventory:\n{str(resinv)}")
 
 @bot.slash_command(description='remove an item(admin command)')
 @commands.has_role("[ROOT]")
@@ -232,26 +270,76 @@ async def senditem(inter, user: disnake.User, item: str = commands.Param(choices
     resinvv = invlist(user.id)
     resinv = '\n'.join(resinvv)
     senderinv = invlist(inter.author.id)
-    if item in senderinv and user.id != inter.author.id:
-        if resinv != 'empty':
-            resinv+=f'\n{item}'
-        if resinv == 'empty':
-            resinv=f'{item}'
-        cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+    if maxitems_limit and maxitems == len(resinvv):
+        await inter.send(f"you can't send {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
+    elif len(resinvv) < maxitems:
+        if item in senderinv and user.id != inter.author.id:
+            if resinv != 'empty':
+                resinv+=f'\n{item}'
+            if resinv == 'empty':
+                resinv=f'{item}'
+            cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+            con.commit()
+            senderinv.remove(item)
+            if senderinv == []:
+                senderinv.append('empty')
+            sendinv = '\n'.join(senderinv) if len(senderinv) > 1 else senderinv[0]
+            cursor.execute(f"UPDATE users SET inventory='{str(sendinv)}' where id={inter.author.id}")
+            con.commit()
+            await inter.send(f"<@{inter.author.id}> sent <@{user.id}> an item: {item}") 
+            if transfering_items_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}\n<@{inter.author.id}>:\n{sendinv}\n<@{user.id}>:\n{resinv}")
+        elif item not in senderinv:
+            await inter.send(f"you don't have {item} so you can't send it")
+        elif user.id == inter.author.id:
+            await inter.send(f"you can't send it to yourself")
+
+@bot.slash_command(description='burn an item(get rid of it)')
+async def burnitem(inter, item: str = commands.Param(choices=items)):
+    await inter.response.defer()
+    inv = invlist(inter.author.id)
+    if item in inv:
+        inv.remove(item)
+        if inv == []:
+            inv.append('empty')
+        res = '\n'.join(inv) if len(inv) > 1 else inv[0]
+        cursor.execute(f"UPDATE users SET inventory='{str(res)}' where id={inter.author.id}")
         con.commit()
-        senderinv.remove(item)
-        if senderinv == []:
-            senderinv.append('empty')
-        sendinv = '\n'.join(senderinv) if len(senderinv) > 1 else senderinv[0]
-        cursor.execute(f"UPDATE users SET inventory='{str(sendinv)}' where id={inter.author.id}")
-        con.commit()
-        await inter.send(f"<@{inter.author.id}> sent <@{user.id}> an item: {item}") 
+        await inter.send(f"successfully burnt {item}")
         if transfering_items_log:
             channel = bot.get_channel(logs_channel_id)
-            await channel.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}\n<@{inter.author.id}>:\n{sendinv}\n<@{user.id}>:\n{resinv}")
-    elif item not in senderinv:
-        await inter.send(f"you don't have {item} so you can't send it")
-    elif user.id == inter.author.id:
-        await inter.send(f"you can't send it to yourself")
+            await channel.send(f"<@{inter.author.id}> burnt {item}")
+    else:
+        await inter.send(f"you don't have {item}")
+
+@bot.slash_command(description='shows shop list')
+async def shop(inter):
+    shoplist = 'shop items:\n\n'
+    for k, v in shopitems.items():
+        shoplist+=f'`{k}` - `{v}` coins\n'
+    shoplist += 'use `/buyitem` to buy an item'
+    await inter.send(shoplist)
+
+@bot.slash_command(description='shows shop list')
+async def buyitem(inter, item: str = commands.Param(choices=shopitem)):
+    await inter.response.defer()
+    for i in cursor.execute(f"SELECT balance, inventory FROM users where id={inter.author.id}"):
+        inv = invlist(inter.author.id)
+        if len(inv) >= maxitems:
+            await inter.send(f"you can't buy it because you already have {len(inv)}/{maxitems} items")
+        elif i[0] < shopitems[item]:
+            await inter.send(f"you have only {i[0]} coins, you need {shopitems[item]-i[0]} more to buy")
+        else:
+            balanc = i[0] - shopitems[item]
+            inv.append(item)
+            resinv = '\n'.join(inv)
+            cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={inter.author.id}")
+            cursor.execute(f"UPDATE users SET balance={balanc} where id={inter.author.id}")
+            con.commit()
+            await inter.send(f"successfully bought {item} for {shopitems[item]} coins, {balanc} coins now")
+            if transfering_balance_log or transfering_items_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f"<@{inter.author.id}> bought {item} for {shopitems[item]} coins, he has {balanc} coins now")
 
 bot.run(token)
