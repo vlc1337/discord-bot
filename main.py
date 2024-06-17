@@ -50,6 +50,12 @@ async def on_ready():
         con.commit()
     channel = bot.get_channel(logs_channel_id)
     await channel.send(f"bot is working")
+    if not os.path.isfile('market.txt'):
+        with open('market.txt', 'w') as r:
+            r.write('')
+    if not os.path.isfile('words.txt'):
+        with open('words.txt', 'w') as r:
+            r.write('')
     with open('market.txt', 'r') as m:
         marketlist = m.readlines()
 
