@@ -1,8 +1,11 @@
 # **Installation**
 
 **Download these things first:**
+
 - [Python](https://www.python.org/downloads/)(also while installing add python to path by clicking the check mark)
+  
 - [PIP](https://bootstrap.pypa.io/get-pip.py)(download it as a python file and run it)
+  
 
 Open cmd and enter ```cd <path to the bot folder>``` Example: ```cd C:\Users\admin\Downloads\bot```
 Enter this command in cmd: ```pip install -r requirements.txt```
