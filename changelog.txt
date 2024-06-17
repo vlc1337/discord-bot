@@ -21,3 +21,7 @@ v0.3
 - added inventory limit
 - added shop
 - added an ability to burn items
+v0.4
+- added marketplace(buy&sell items)
+- added burning confirmation
+- added coins mining
