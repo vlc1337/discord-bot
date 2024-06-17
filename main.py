@@ -15,9 +15,10 @@ shopitems  = ['1|Lucky coin|500', '2|Golden coin|1000', '3|Pickaxe|1000'] #ID|it
 cooldowns = {}
 marketlist = []
 
+admin_role = '[ROOT]'
 logs_channel_id = 848444705414840350
 bot_id = 996707458082951248
-token = 'token' #your bot token
+token = 'token'
 transfering_balance_log = True #logging balance operations
 transfering_items_log = True #logging inventory changing
 lucky_coin_boost = True #lucky coin boosts reward per message
@@ -203,7 +204,7 @@ def invlist(id):
         return inv
 
 @bot.slash_command(description='add balance to user(admin command)')
-@commands.has_role("[ROOT]")
+@commands.has_role(admin_role)
 async def addbalance(inter, user: disnake.User, amount: int):
     await inter.response.defer()
     for row in cursor.execute(f"SELECT balance FROM users where id={user.id}"):
@@ -249,7 +250,7 @@ async def sendbalance(inter, user:disnake.User, amount: int):
 
 
 @bot.slash_command(description='add an item to user(admin command)')
-@commands.has_role("[ROOT]")
+@commands.has_role(admin_role)
 async def additem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
     await inter.response.defer()
     resinvv = invlist(user.id)
@@ -271,7 +272,7 @@ async def additem(inter, user: disnake.User, item: str = commands.Param(choices=
             await channel.send(f"`{inter.author.name}` gave `{user.name}` an item: {item}\ncurrent `{user.name}` inventory:\n{str(resinv)}")
 
 @bot.slash_command(description='remove an item(admin command)')
-@commands.has_role("[ROOT]")
+@commands.has_role(admin_role)
 async def removeitem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
     await inter.response.defer()
     resinvv = invlist(user.id)
@@ -565,7 +566,7 @@ async def claim(ctx):
         await channel.send(f'`{ctx.author.name}` claimed {add} coins, {bal} coins now')
 
 @bot.slash_command(description='save db')
-@commands.has_role("[ROOT]")
+@commands.has_role(admin_role)
 async def dump(ctx):
     file_path = "discord.db"
     if os.path.exists(file_path):
