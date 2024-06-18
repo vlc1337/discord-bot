@@ -33,25 +33,25 @@ shopitems - contains items which are availible in the shop, format ID|item|price
 
 cooldowns and marketlist - just don't change them
 
-transfering_balance_log - True/False - bot will send a message to logs channel when someone buys something/transfers balance/claim coins
+transfering_balance_log - bool - bot will send a message to logs channel when someone buys something/transfers balance/claim coins
 
-transfering_items_log - True/False - bot will send a message to logs channel when someone buys something/transfers item/burns item
+transfering_items_log - bool - bot will send a message to logs channel when someone buys something/transfers item/burns item
 
-lucky_coin_boost - True/False - lucky coin's boosting perk(adding additional coins per each message)
+lucky_coin_boost - bool - lucky coin's boosting perk(adding additional coins per each message)
 
 lucky_coin_boosti - integer - how much to add per each message
 
 golden_coin_boost and golden_coin_boosti are the same
 
-message_rewards - True/False - to add balance to users for messages
+message_rewards - bool - to add balance to users for messages
 
 min_reward and max_reward - integer - how much to add
 
 min_message_length - integer - minimal message length to pay a reward
 
-chat_bot - True/False - turning on chat bot(sometimes sends random previous messages, you can add your words by changing words.txt)
+chat_bot - bool - turning on chat bot(sometimes sends random previous messages, you can add your words by changing words.txt)
 
-maxitems_limit - True/False - set a limit on inventory items
+maxitems_limit - bool - set a limit on inventory items
 
 maxitems - integer - max items per person
 
@@ -99,3 +99,61 @@ send a confirmation in chat
 
 TON wallet
 ```UQByi9LkO8E9-_tTtXoERu638unhbVzHXet5BBcKNuFRlHs9```
+
+# **Changelog**
+
+v0.1
+
+- made a chat bot sending random previous messages(or you can fill messages database by changing words.txt)
+  
+- added sql users database
+  
+- added profile including id, balance, messages, inventory
+  
+- added leaderboard for balance and messages
+  
+- adeed an admin command to change balance(use -int to decrease balance)
+  
+v0.1.1
+
+- fixed problem with chat bot
+  
+- fixed messages leaderboard
+  
+v0.2
+
+- added first item: lucky coin(gives balance farm boost)
+  
+- added config
+  
+- added balance transfers
+  
+- added inventory transfers
+  
+- fixed some bugs
+  
+v0.2.1
+
+- upgraded leaderboard
+  
+- minor bug fixes
+  
+v0.3
+
+- improved profile
+  
+- added inventory limit
+  
+- added shop
+  
+- added an ability to burn items
+
+- added more test items
+  
+v0.4
+
+- added marketplace(buy&sell items)
+  
+- added burning confirmation
+  
+- added coins mining
