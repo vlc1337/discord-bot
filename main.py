@@ -263,7 +263,7 @@ async def sendbalance(inter, user:disnake.User, amount: int):
 async def additem(inter, user: disnake.User, item: str = commands.Param(choices=items)):
     await inter.response.defer()
     resinvv = invlist(user.id)
-    for i in cursor.execute(f"SELECT space FROM users where id={inter.author.id}"):
+    for i in cursor.execute(f"SELECT space FROM users where id={user.id}"):
         maxitems = int(i[0])
     if maxitems_limit and maxitems <= len(resinvv) and resinvv != 'empty':
         await inter.send(f"you can't add {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
@@ -307,9 +307,9 @@ async def senditem(inter, user: disnake.User, item: str = commands.Param(choices
     resinvv = invlist(user.id)
     resinv = '\n'.join(resinvv)
     senderinv = invlist(inter.author.id)
-    for i in cursor.execute(f"SELECT space FROM users where id={inter.author.id}"):
+    for i in cursor.execute(f"SELECT space FROM users where id={user.id}"):
         maxitems = int(i[0])
-    if maxitems_limit and maxitems == len(resinvv) and resinvv != 'empty':
+    if maxitems_limit and maxitems <= len(resinvv) and resinvv != 'empty':
         await inter.send(f"you can't send {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
     elif (len(resinvv) < maxitems and maxitems_limit) or (maxitems_limit == False):
         if item in senderinv and user.id != inter.author.id:
