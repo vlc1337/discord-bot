@@ -15,7 +15,6 @@ It will install all libraries you need.
 
 If you want to change the bot's database(discord.db) by yourself - download [DB browser for SQLite](https://sqlitebrowser.org/dl/) and open database using this app.
 
-
 Go to [discord developer portal](https://discord.com/developers/applications) and create an application. Go to bot and set up an avatar and username; turn on all privileged gateway intents. Save your bot's token.
 
 To add your bot to your server - go to OAuth2, pick bot in OAuth2 URL Generator and go to the generated link.
@@ -25,23 +24,23 @@ To add your bot to your server - go to OAuth2, pick bot in OAuth2 URL Generator 
 
 Open main.py via text redactor or python IDLE. Change logs_channel_id, bot_id and token(you can copy IDs by turning on dev mode in discord). 
 
-admin_role - string - a name of admin role for admin commands
-
-items - contains all in-game items
+items - contains all in-game items(used for /additem, /removeitem, /senditem)
 
 shopitems - contains items which are availible in the shop, format ID|item|price
 
+coin_boosts - how much coins to add per message if user has this coin, format coin: amount
+
 cooldowns and marketlist - just don't change them
+
+helptext - string - text displayed using /help command(change it as you want)
+
+admin_role - string - a name of admin role for admin commands
 
 transfering_balance_log - bool - bot will send a message to logs channel when someone buys something/transfers balance/claim coins
 
 transfering_items_log - bool - bot will send a message to logs channel when someone buys something/transfers item/burns item
 
-lucky_coin_boost - bool - lucky coin's boosting perk(adding additional coins per each message)
-
-lucky_coin_boosti - integer - how much to add per each message
-
-golden_coin_boost and golden_coin_boosti are the same
+coins_boost - bool - to activate coins boost(additional coins per message)
 
 message_rewards - bool - to add balance to users for messages
 
@@ -53,13 +52,24 @@ chat_bot - bool - turning on chat bot(sometimes sends random previous messages, 
 
 maxitems_limit - bool - set a limit on inventory items
 
-maxitems - integer - max items per person
+maxslots - integer - primary limit of slots per user
+
+slot_cost - integer - additional inventory slot price
+
+slot_cost_increase - integer - increase price per each level
 
 claim_coins - integer - how much to award for claim
 
 claim_interval - integer - claiming interval(in seconds)
 
-tester_coin_boost - integer - multiply claimed coins(tester coin's boost)
+How to change max slots limit if I already have a filled database? Use this SQL command:
+
+UPDATE users
+SET space = 5;
+
+where 5 - your number
+
+Also change help command if you change items or something
 
 # **Admin commands**
 
@@ -95,12 +105,14 @@ send a confirmation in chat
 
 /lbmoney <page> and /lbmessages <page> - checking leaderboard
 
+/help - help command
+
 # **Donate**
 
 TON wallet
 ```UQByi9LkO8E9-_tTtXoERu638unhbVzHXet5BBcKNuFRlHs9```
 
-# **Changelog**
+# **Change log**
 
 v0.1
 
@@ -157,3 +169,9 @@ v0.4
 - added burning confirmation
   
 - added coins mining
+
+v0.5
+
+- added inventory slots in shop
+
+- changed config
