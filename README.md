@@ -85,17 +85,15 @@ Also change help command if you change items or something
 
 /market - opens shop and market
 
+/buyslot - buy an additional slot in inventory(if enabled); send 'yes' as a confirmation in chat
+
 /sell <price> <item> - selling items
 
 to get your item back just buy it from market, you will be charged 0 coins
 
-/buy - buying items
+/buy <id> - buying items
 
-send an ID of an item you want to buy in chat and then send a confirmation
-
-/burnitem - throwing away items
-
-send a confirmation in chat 
+/burnitem - throwing away items; send 'yes' as a confirmation in chat 
 
 /sendbalance <user> <amount> - transfering balance
 
@@ -175,3 +173,9 @@ v0.5
 - added inventory slots in shop
 
 - changed config
+
+v0.5.1
+
+- added items stack in inventory
+
+- changed items buying progress
