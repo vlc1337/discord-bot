@@ -11,7 +11,7 @@ bot = commands.InteractionBot(intents=disnake.Intents.all())
 con = sqlite3.connect("discord.db")
 cursor = con.cursor()
 items = ['Copper ingot', 'Torch', 'Lucky coin', 'Golden coin', 'Platinum coin', 'Diamond coin', 'Pickaxe']
-shopitems  = ['1|Lucky coin|500', '2|Golden coin|1000',  '3|Platinum coin|2000', '4|Diamond coin|4000', '5|Pickaxe|1000', '999|Additional inventory slot|1000'] #ID|item|price
+shopitems  = ['1|Lucky coin|500', '2|Golden coin|1000',  '3|Platinum coin|2000', '4|Diamond coin|4000', '5|Pickaxe|1000', '6|Torch|1000'] #ID|item|price
 coin_boosts = {'Lucky coin': 1, 'Golden coin': 2, 'Platinum coin': 3, 'Diamond coin': 5} #coin:boost per message
 cooldowns = {}
 marketlist = []
