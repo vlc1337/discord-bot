@@ -526,7 +526,7 @@ async def buy(ctx, id: int):
                 cursor.execute(f"UPDATE users SET balance={newsell} where id={seller.id}")
                 con.commit()
                 try:
-                    await seller.send(f"`{ctx.author.name}` bought your {item[2]} for {item[3]} coins", timeout=1.0)
+                    await seller.send(f"`{ctx.author.name}` bought your {item[2]} for {item[3]} coins")
                 except: pass
                 if transfering_balance_log or transfering_items_log:
                     channel = bot.get_channel(logs_channel_id)
