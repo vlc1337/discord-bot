@@ -11,7 +11,7 @@ bot = commands.InteractionBot(intents=disnake.Intents.all())
 con = sqlite3.connect("discord.db")
 cursor = con.cursor()
 items = ['Copper ingot', 'Torch', 'Lucky coin', 'Golden coin', 'Platinum coin', 'Diamond coin', 'Pickaxe']
-shopitems  = ['1|Lucky coin|500', '2|Golden coin|1000',  '3|Platinum coin|2000', '4|Diamond coin|4000', '5|Pickaxe|1000', '999|Additional inventory slot|1'] #ID|item|price
+shopitems  = ['1|Lucky coin|500', '2|Golden coin|1000',  '3|Platinum coin|2000', '4|Diamond coin|4000', '5|Pickaxe|1000', '999|Additional inventory slot|1000'] #ID|item|price
 coin_boosts = {'Lucky coin': 1, 'Golden coin': 2, 'Platinum coin': 3, 'Diamond coin': 5} #coin:boost per message
 cooldowns = {}
 marketlist = []
@@ -28,8 +28,8 @@ Additional inventory slot price depends on your inventory slots amount
 More info - https://github.com/vlc1337/discord-bot'''
 admin_role = '[ROOT]'
 logs_channel_id = 1337
-bot_id = 1
-token = 'your token'
+bot_id = 7331
+token = 'token'
 transfering_balance_log = True #logging balance operations
 transfering_items_log = True #logging inventory changing
 coins_boost = True 
@@ -88,15 +88,21 @@ async def account(inter, user: disnake.User = None):
         ninv = "\nempty" if 'empty' in info[3] else '\n'
         coun = 0
         mas = info[3].split('\n')
-        mas.sort()
         if 'empty' not in info[3]:
-            for i in mas:
+            mass = set(mas)
+            mass = list(mass)
+            mass.sort()
+            for i in mass:
                 ninv += f'`{i}`\n'
+                if mas.count(i) != 1:
+                    ninv = ninv[:-1]
+                    ninv += f' - `{info[3].count(i)}x`\n'
             coun = len(info[3].split('\n'))
         if maxitems_limit:
             ninv = f'`{user.name}` inventory ({coun}/{info[4]} items):\n' + ninv
         else:
             ninv = f'`{user.name}` inventory:\n' + ninv
+        ninv += 'use `/market` to buy items and `/buyslot` to buy inventory slots'
         profil = f'viewing `{user.name}`\nID: `{info[0]}`\nbalance: `{info[1]}`\nmessages: `{info[2]}`'
         await inter.send(profil, components=[
         disnake.ui.Button(label="open inventory", style=disnake.ButtonStyle.primary, custom_id="inventory")
@@ -265,22 +271,22 @@ async def additem(inter, user: disnake.User, item: str = commands.Param(choices=
     resinvv = invlist(user.id)
     for i in cursor.execute(f"SELECT space FROM users where id={user.id}"):
         maxitems = int(i[0])
-    if maxitems_limit and maxitems <= len(resinvv) and resinvv != 'empty':
-        await inter.send(f"you can't add {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
-    elif user.bot:
-        await inter.send(f"you can't send it to a bot")
-    else:
-        resinv = '\n'.join(resinvv)
-        if resinvv != 'empty':
-            resinv+=f'\n{item}'
-        if resinvv == 'empty':
-            resinv=f'{item}'
-        cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
-        con.commit()
-        await inter.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}") 
-        if transfering_items_log:
-            channel = bot.get_channel(logs_channel_id)
-            await channel.send(f"`{inter.author.name}` gave `{user.name}` an item: {item}\ncurrent `{user.name}` inventory:\n{str(resinv)}")
+        if maxitems_limit and maxitems <= len(resinvv) and resinvv != 'empty':
+            await inter.send(f"you can't add {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
+        elif user.bot:
+            await inter.send(f"you can't send it to a bot")
+        else:
+            resinv = '\n'.join(resinvv)
+            if resinvv != 'empty':
+                resinv+=f'\n{item}'
+            if resinvv == 'empty':
+                resinv=f'{item}'
+            cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+            con.commit()
+            await inter.send(f"<@{inter.author.id}> gave <@{user.id}> an item: {item}") 
+            if transfering_items_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f"`{inter.author.name}` gave `{user.name}` an item: {item}\ncurrent `{user.name}` inventory:\n{str(resinv)}")
 
 @bot.slash_command(description='remove an item(admin command)')
 @commands.has_role(admin_role)
@@ -339,10 +345,10 @@ async def burnitem(inter, item: str = commands.Param(choices=items)):
     await inter.response.defer()
     inv = invlist(inter.author.id)
     def check(m):
-        return m.author == inter.author and m.channel == inter.channel and (m.content == 'yes' or m.content == '`yes`')
+        return m.author == inter.author and m.channel == inter.channel and (m.content.lower() == 'yes' or m.content.lower() == '`yes`')
     if item in inv:
         try:
-            await inter.send(f"are you sure you want to burn(throw away) {item}? send `yes` to confirm(or wait 15 seconds to cancel)")
+            await inter.send(f"are you sure you want to burn(throw away) {item}? send `yes` in chat to confirm(or wait 15 seconds to cancel)")
             msg = await bot.wait_for("message", check=check, timeout=15.0)
             inv.remove(item)
             if inv == []:
@@ -422,92 +428,84 @@ async def market(inter):
     ])
 
 @bot.slash_command(description='buy an item using marketplace')
-async def buy(ctx):
+async def buy(ctx, id: int):
     await ctx.response.defer()
-    await ctx.send("enter an ID of item to buy(use `/market` to check)")
-    def check1(m):
-        ids = []
-        for i in marketlist:
-            i = i.split('|')
-            ids.append(i[0])
-        for i in shopitems:
-            i = i.split('|')
-            ids.append(i[0])
-        return m.author == ctx.author and m.channel == ctx.channel and m.content in ids
-    def check2(m):
-        return m.author == ctx.author and m.channel == ctx.channel and (m.content == 'yes' or m.content == '`yes`')
-    try:
-        msg = await bot.wait_for("message", check=check1, timeout=30.0)
-        id = msg.content
-        item = []
-        for i in marketlist:
-            i = i.split('|')
-            if i[0] == id:
-                item = i
-        for i in shopitems:
-            i = i.split('|')
-            if i[0] == id:
-                item = i
-        if len(item) == 3:
-            if id == '999':
-                for i in cursor.execute(f"SELECT space FROM users where id={ctx.author.id}"):
-                    price = (i[0] - maxslots) * slot_cost_increase + slot_cost
-                    await ctx.send(f"are you sure you want to buy {item[1]} for {price} coins? send `yes` to confirm(or wait 15 seconds to cancel)")
-                    try:
-                        conf = await bot.wait_for("message", check=check2, timeout=15.0)
-                        for row in cursor.execute(f"SELECT balance FROM users where id={ctx.author.id}"):
-                            if price > row[0]:
-                                await ctx.send(f"insufficient balance")
-                                return
-                            else:
-                                newb = row[0] - price
-                                cursor.execute(f"UPDATE users SET balance={newb} where id={ctx.author.id}")
-                            for i in cursor.execute(f"SELECT space FROM users where id={ctx.author.id}"):
-                                maxitems = int(i[0])
-                                maxitems+=1
-                                cursor.execute(f"UPDATE users SET space={maxitems} where id={ctx.author.id}")
-                                con.commit()
-                        await ctx.send(f"successfully bought {item[1]} for {price} coins")
-                        if transfering_balance_log or transfering_items_log:
-                            channel = bot.get_channel(logs_channel_id)
-                            await channel.send(f"`{ctx.author.name}` bought {item} from store for {price} coins, {newb} coins now")
-                    except asyncio.TimeoutError:
-                        await ctx.send("timeout, try again")
-                    return
-            await ctx.send(f"are you sure you want to buy {item[1]} for {int(item[2])} coins? send `yes` to confirm(or wait 15 seconds to cancel)")
-            try:
-                conf = await bot.wait_for("message", check=check2, timeout=15.0)
-                inv = invlist(ctx.author.id)
-                for row in cursor.execute(f"SELECT balance FROM users where id={ctx.author.id}"):
-                    if int(item[2]) > row[0]:
-                        await ctx.send(f"insufficient balance")
-                        return
-                    for i in cursor.execute(f"SELECT space FROM users where id={ctx.author.id}"):
-                        maxitems = int(i[0])
-                    if len(inv) == maxitems and inv != 'empty' and maxitems_limit:
-                        await ctx.send(f"you have {maxitems}/{maxitems} items now so you can't do it")
-                        return
-                    else:
-                        newb = row[0] - int(item[2])
-                        cursor.execute(f"UPDATE users SET balance={newb} where id={ctx.author.id}")
-                        con.commit()
-                        if inv != 'empty':
-                            inv.append(item[1])
-                            inv = '\n'.join(inv)
-                        else:
-                            inv = item[1]
-                        cursor.execute(f"UPDATE users SET inventory='{str(inv)}' where id={ctx.author.id}")
-                        con.commit()
-                        await ctx.send(f"successfully bought {item[1]} for {item[2]} coins")
-                        if transfering_balance_log or transfering_items_log:
-                            channel = bot.get_channel(logs_channel_id)
-                            await channel.send(f"`{ctx.author.name}` bought {item} from store, {newb} coins now")
-            except asyncio.TimeoutError:
-                await ctx.send("timeout, try again")
-        if len(item) == 4:
-            if ctx.author.id == int(item[1]):
-                inv = invlist(ctx.author.id)
-                inv.remove(f'{item[2]}(on sale)')
+    item = []
+    for i in marketlist:
+        i = i.split('|')
+        if int(i[0]) == int(id):
+            item = i
+    for i in shopitems:
+        i = i.split('|')
+        if int(i[0]) == int(id):
+            item = i
+    if item == []:
+        await ctx.send('invalid id')
+        return
+    if len(item) == 3:
+        inv = invlist(ctx.author.id)
+        for row in cursor.execute(f"SELECT balance FROM users where id={ctx.author.id}"):
+            if int(item[2]) > row[0]:
+                await ctx.send(f"insufficient balance")
+                return
+            for i in cursor.execute(f"SELECT space FROM users where id={ctx.author.id}"):
+                maxitems = int(i[0])
+            if len(inv) == maxitems and inv != 'empty' and maxitems_limit:
+                await ctx.send(f"you have {maxitems}/{maxitems} items now so you can't do it")
+                return
+            else:
+                newb = row[0] - int(item[2])
+                cursor.execute(f"UPDATE users SET balance={newb} where id={ctx.author.id}")
+                con.commit()
+                if inv != 'empty':
+                    inv.append(item[1])
+                    inv = '\n'.join(inv)
+                else:
+                    inv = item[1]
+                cursor.execute(f"UPDATE users SET inventory='{str(inv)}' where id={ctx.author.id}")
+                con.commit()
+                await ctx.send(f"successfully bought {item[1]} for {item[2]} coins")
+                if transfering_balance_log or transfering_items_log:
+                    channel = bot.get_channel(logs_channel_id)
+                    await channel.send(f"`{ctx.author.name}` bought {item} from store, {newb} coins now")
+    if len(item) == 4:
+        if ctx.author.id == int(item[1]):
+            inv = invlist(ctx.author.id)
+            inv.remove(f'{item[2]}(on sale)')
+            if inv != 'empty':
+                inv.append(item[2])
+                inv = '\n'.join(inv)
+            else:
+                inv = item[2]
+            cursor.execute(f"UPDATE users SET inventory='{str(inv)}' where id={ctx.author.id}")
+            con.commit()
+            await ctx.send(f'you got your {item[2]} back')
+            this = '|'.join(item)
+            marketlist.remove(this)
+            with open('market.txt', "w") as f:
+                f.write("")
+            with open('market.txt', 'r+') as m:
+                if marketlist != []:
+                    for i in marketlist:
+                        m.write(f"{i}")
+            if transfering_items_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f"`{ctx.author.name}` removed {item[2]} from sale; ID - {item[0]}")
+            return
+        inv = invlist(ctx.author.id)
+        for i in cursor.execute(f"SELECT space FROM users where id={ctx.author.id}"):
+            maxitems = int(i[0])
+        if len(inv) == maxitems and inv != 'empty' and maxitems_limit:
+            await ctx.send(f"you have {maxitems}/{maxitems} items now so you can't do it")
+            return
+        for row in cursor.execute(f"SELECT balance FROM users where id={ctx.author.id}"):
+            if int(item[3]) > row[0]:
+                await ctx.send(f"insufficient balance")
+                return
+            else:
+                newb = row[0] - int(item[3])
+                cursor.execute(f"UPDATE users SET balance={newb} where id={ctx.author.id}")
+                con.commit()
                 if inv != 'empty':
                     inv.append(item[2])
                     inv = '\n'.join(inv)
@@ -515,7 +513,24 @@ async def buy(ctx):
                     inv = item[2]
                 cursor.execute(f"UPDATE users SET inventory='{str(inv)}' where id={ctx.author.id}")
                 con.commit()
-                await ctx.send(f'you got your {item[2]} back')
+                await ctx.send(f"successfully bought {item[2]} for {int(item[3])} coins")
+                seller = await bot.fetch_user(int(item[1]))
+                for row in cursor.execute(f"SELECT balance FROM users where id={seller.id}"):
+                    newsell = row[0] + int(item[3])
+                sellinv = invlist(seller.id)
+                sellinv.remove(f'{item[2]}(on sale)')
+                sellinv = '\n'.join(sellinv)
+                if sellinv == '\n' or sellinv == '':
+                    sellinv = 'empty'
+                cursor.execute(f"UPDATE users SET inventory='{str(sellinv)}' where id={seller.id}")
+                cursor.execute(f"UPDATE users SET balance={newsell} where id={seller.id}")
+                con.commit()
+                try:
+                    await seller.send(f"`{ctx.author.name}` bought your {item[2]} for {item[3]} coins", timeout=1.0)
+                except: pass
+                if transfering_balance_log or transfering_items_log:
+                    channel = bot.get_channel(logs_channel_id)
+                    await channel.send(f"`{ctx.author.name}` bought {item} from market from {seller.name}, {newb} coins now")
                 this = '|'.join(item)
                 marketlist.remove(this)
                 with open('market.txt', "w") as f:
@@ -524,64 +539,35 @@ async def buy(ctx):
                     if marketlist != []:
                         for i in marketlist:
                             m.write(f"{i}")
-                if transfering_items_log:
-                    channel = bot.get_channel(logs_channel_id)
-                    await channel.send(f"`{ctx.author.name}` removed {item[2]} from sale; ID - {item[0]}")
-                return
-            await ctx.send(f"are you sure you want to buy {item[2]} for {int(item[3])} coins? send `yes` to confirm(or wait 15 seconds to cancel)")
-            try:
-                conf = await bot.wait_for("message", check=check2, timeout=15.0)
-                inv = invlist(ctx.author.id)
-                for i in cursor.execute(f"SELECT space FROM users where id={ctx.author.id}"):
-                    maxitems = int(i[0])
-                if len(inv) == maxitems and inv != 'empty' and maxitems_limit:
-                    await ctx.send(f"you have {maxitems}/{maxitems} items now so you can't do it")
+
+@bot.slash_command(description='buy an additional inventory slot')
+async def buyslot(inter):
+    def check2(m):
+        return m.author == inter.author and m.channel == inter.channel and (m.content.lower() == 'yes' or m.content.lower() == '`yes`')
+    for i in cursor.execute(f"SELECT space FROM users where id={inter.author.id}"):
+        price = int(1000 * 1.2 ** (i[0] - maxslots))
+        await inter.send(f"are you sure you want to buy an additional inventory slot for {price} coins? send `yes` in chat to confirm(or wait 15 seconds to cancel)")
+        try:
+            conf = await bot.wait_for("message", check=check2, timeout=15.0)
+            for row in cursor.execute(f"SELECT balance FROM users where id={inter.author.id}"):
+                if price > row[0]:
+                    await inter.send(f"insufficient balance")
                     return
-                for row in cursor.execute(f"SELECT balance FROM users where id={ctx.author.id}"):
-                    if int(item[3]) > row[0]:
-                        await ctx.send(f"insufficient balance")
-                        return
-                    else:
-                        newb = row[0] - int(item[3])
-                        cursor.execute(f"UPDATE users SET balance={newb} where id={ctx.author.id}")
-                        con.commit()
-                        if inv != 'empty':
-                            inv.append(item[2])
-                            inv = '\n'.join(inv)
-                        else:
-                            inv = item[2]
-                        cursor.execute(f"UPDATE users SET inventory='{str(inv)}' where id={ctx.author.id}")
-                        con.commit()
-                        await ctx.send(f"successfully bought {item[2]} for {int(item[3])} coins")
-                        seller = await bot.fetch_user(int(item[1]))
-                        for row in cursor.execute(f"SELECT balance FROM users where id={seller.id}"):
-                            newsell = row[0] + int(item[3])
-                        sellinv = invlist(seller.id)
-                        sellinv.remove(f'{item[2]}(on sale)')
-                        sellinv = '\n'.join(sellinv)
-                        if sellinv == '\n' or sellinv == '':
-                            sellinv = 'empty'
-                        cursor.execute(f"UPDATE users SET inventory='{str(sellinv)}' where id={seller.id}")
-                        cursor.execute(f"UPDATE users SET balance={newsell} where id={seller.id}")
-                        con.commit()
-                        try:
-                            await seller.send(f"`{ctx.author.name}` bought your {item[2]} for {item[3]} coins", timeout=1.0)
-                        except: pass
-                        if transfering_balance_log or transfering_items_log:
-                            channel = bot.get_channel(logs_channel_id)
-                            await channel.send(f"`{ctx.author.name}` bought {item} from market from {seller.name}, {newb} coins now")
-                        this = '|'.join(item)
-                        marketlist.remove(this)
-                        with open('market.txt', "w") as f:
-                            f.write("")
-                        with open('market.txt', 'r+') as m:
-                            if marketlist != []:
-                                for i in marketlist:
-                                    m.write(f"{i}")
-            except asyncio.TimeoutError:
-                await ctx.send("timeout, try again")
-    except asyncio.TimeoutError:
-        await ctx.send("timeout, try again")
+                else:
+                    newb = row[0] - price
+                    cursor.execute(f"UPDATE users SET balance={newb} where id={inter.author.id}")
+                for i in cursor.execute(f"SELECT space FROM users where id={inter.author.id}"):
+                    maxitems = int(i[0])
+                    maxitems+=1
+                    cursor.execute(f"UPDATE users SET space={maxitems} where id={inter.author.id}")
+                    con.commit()
+            await inter.send(f"successfully bought an additional inventory slot for {price} coins")
+            if transfering_balance_log or transfering_items_log:
+                channel = bot.get_channel(logs_channel_id)
+                await channel.send(f"`{inter.author.name}` bought an additional inventory slot from store for {price} coins, {newb} coins now")
+        except asyncio.TimeoutError:
+            await inter.send("timeout, try again")
+        return
 
 @bot.slash_command(description='claim free coins')
 async def claim(ctx):
@@ -620,7 +606,7 @@ async def dump(ctx):
     else:
         await ctx.send("file does not exist")
 
-bot.slash_command()
+@bot.slash_command()
 async def help(ctx):
     await ctx.send(helptext)
 
