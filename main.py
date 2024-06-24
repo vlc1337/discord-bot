@@ -562,6 +562,7 @@ async def buyslot(inter):
             for row in cursor.execute(f"SELECT balance FROM users where id={inter.author.id}"):
                 if price > row[0]:
                     await inter.send(f"insufficient balance")
+                    ee = False
                     return
                 else:
                     newb = row[0] - price
