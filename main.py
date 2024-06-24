@@ -317,28 +317,32 @@ async def senditem(inter, user: disnake.User, item: str = commands.Param(choices
         maxitems = int(i[0])
     if maxitems_limit and maxitems <= len(resinvv) and resinvv != 'empty':
         await inter.send(f"you can't send {item} because <@{user.id}> already has {len(resinvv)}/{maxitems} items")
-    elif (len(resinvv) < maxitems and maxitems_limit) or (maxitems_limit == False):
-        if item in senderinv and user.id != inter.author.id:
-            if resinv != 'empty':
-                resinv+=f'\n{item}'
-            if resinv == 'empty':
-                resinv=f'{item}'
-            cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
-            con.commit()
-            senderinv.remove(item)
-            if senderinv == []:
-                senderinv.append('empty')
-            sendinv = '\n'.join(senderinv) if len(senderinv) > 1 else senderinv[0]
-            cursor.execute(f"UPDATE users SET inventory='{str(sendinv)}' where id={inter.author.id}")
-            con.commit()
-            await inter.send(f"<@{inter.author.id}> sent <@{user.id}> an item: {item}") 
-            if transfering_items_log:
-                channel = bot.get_channel(logs_channel_id)
-                await channel.send(f"`{inter.author.name}` gave `{user.name}` an item: {item}\n`{inter.author.name}`:\n{sendinv}\n`{user.name}`:\n{resinv}")
-    elif item not in senderinv:
-        await inter.send(f"you don't have {item} so you can't send it")
-    elif user.id == inter.author.id:
+        return
+    if user.bot:
+        await inter.send(f"you can't send it to bot")
+        return
+    if item not in senderinv:
+        await inter.send(f"you don't have {item}")
+        return
+    if user.id == inter.author.id:
         await inter.send(f"you can't send it to yourself")
+        return
+    if resinv != 'empty':
+        resinv+=f'\n{item}'
+    if resinv == 'empty':
+        resinv=f'{item}'
+    cursor.execute(f"UPDATE users SET inventory='{str(resinv)}' where id={user.id}")
+    con.commit()
+    senderinv.remove(item)
+    if senderinv == []:
+        senderinv.append('empty')
+    sendinv = '\n'.join(senderinv) if len(senderinv) > 1 else senderinv[0]
+    cursor.execute(f"UPDATE users SET inventory='{str(sendinv)}' where id={inter.author.id}")
+    con.commit()
+    await inter.send(f"<@{inter.author.id}> sent <@{user.id}> an item: {item}") 
+    if transfering_items_log:
+        channel = bot.get_channel(logs_channel_id)
+        await channel.send(f"`{inter.author.name}` gave `{user.name}` an item: {item}\n`{inter.author.name}`:\n{sendinv}\n`{user.name}`:\n{resinv}")
 
 @bot.slash_command(description='burn an item(get rid of it)')
 async def burnitem(inter, item: str = commands.Param(choices=items)):
@@ -540,8 +544,14 @@ async def buy(ctx, id: int):
                         for i in marketlist:
                             m.write(f"{i}")
 
+ee = False
 @bot.slash_command(description='buy an additional inventory slot')
 async def buyslot(inter):
+    global ee
+    if ee:
+        await inter.send(f'processing other operation, wait...')
+        return
+    ee = True
     def check2(m):
         return m.author == inter.author and m.channel == inter.channel and (m.content.lower() == 'yes' or m.content.lower() == '`yes`')
     for i in cursor.execute(f"SELECT space FROM users where id={inter.author.id}"):
@@ -562,11 +572,13 @@ async def buyslot(inter):
                     cursor.execute(f"UPDATE users SET space={maxitems} where id={inter.author.id}")
                     con.commit()
             await inter.send(f"successfully bought an additional inventory slot for {price} coins")
+            ee = False
             if transfering_balance_log or transfering_items_log:
                 channel = bot.get_channel(logs_channel_id)
                 await channel.send(f"`{inter.author.name}` bought an additional inventory slot from store for {price} coins, {newb} coins now")
         except asyncio.TimeoutError:
             await inter.send("timeout, try again")
+            ee = False
         return
 
 @bot.slash_command(description='claim free coins')
